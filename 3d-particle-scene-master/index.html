@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<title>three.js canvas - particles - waves</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link href="main.css" rel="stylesheet">
+</head>
+
+<body>
+	<script src="js/three.js"></script>
+	<script src="js/OrbitControls.js"></script>
+	<script src="js/BloomPass.js"></script>
+	<script src="js/FilmPass.js"></script>
+	<script src="js/ShaderPass.js"></script>
+	<script src="js/FocusShader.js"></script>
+	<script src="js/CopyShader.js"></script>
+	<script src="js/EffectComposer.js"></script>
+	<script src="js/ConvolutionShader.js"></script>
+	<script src="js/FilmShader.js"></script>
+	<script src="js/RenderPass.js"></script>
+
+	<script src="js/MaskPass.js"></script>
+	<script src="js/tween.min.js"></script>
+	<script src="js/jquery.min.js"></script>
+
+	<div class="nav">
+		<ul id="sidenav">
+			<li data-menuanchor="g" class="active"><a index="0" href="#g"><i class="nav-game"></i><span>Games</span></a>
+			</li>
+			<li data-menuanchor="a"><a index="1" href="#a"><i class="nav-brus"></i><span>Comics</span></a></li>
+			<li data-menuanchor="l"><a index="2" href="#l"><i class="nav-book"></i><span>Words</span></a></li>
+			<li data-menuanchor="f"><a index="3" href="#f"><i class="nav-film"></i><span>Films</span></a></li>
+			<li data-menuanchor="u"><a index="4" href="#u"><i class="nav-kkvv"></i><span>UP2017</span></a></li>
+		</ul>
+	</div>
+
+	<div class="text-container" id="text-container">
+		<div class="section page1 fp-section fp-table active fp-completely" data-anchor="g">
+			<div class="fp-tableCell">
+				<div class="txt"><img src="assets/298692010400560.png"></div>
+				<div class="dots">
+					<i class="dot dot-1"><b></b></i>
+					<i class="dot dot-2"><b></b></i>
+					<i class="dot dot-3"><b></b></i>
+					<i class="dot dot-4"><b></b></i>
+					<i class="dot dot-5"><b></b></i>
+					<i class="dot dot-6"><b></b></i>
+					<i class="dot dot-7"><b></b></i>
+					<i class="dot dot-8"><b></b></i>
+					<i class="dot dot-9"><b></b></i>
+				</div>
+			</div>
+		</div>
+		<div class="section page2 fp-section fp-table" data-anchor="a">
+			<div class="fp-tableCell">
+				<div class="txt"><img src="assets/298734013640422.png"></div>
+				<div class="dots">
+					<i class="dot dot-1"><b></b></i>
+					<i class="dot dot-2"><b></b></i>
+					<i class="dot dot-3"><b></b></i>
+					<i class="dot dot-4"><b></b></i>
+					<i class="dot dot-5"><b></b></i>
+					<i class="dot dot-6"><b></b></i>
+				</div>
+			</div>
+		</div>
+		<div class="section page3 fp-section fp-table" data-anchor="l">
+			<div class="fp-tableCell">
+				<div class="txt"><img src="assets/298712013780404.png"></div>
+				<div class="dots">
+					<i class="dot dot-1"><b></b></i>
+					<i class="dot dot-2"><b></b></i>
+					<i class="dot dot-3"><b></b></i>
+					<i class="dot dot-4"><b></b></i>
+					<i class="dot dot-5"><b></b></i>
+					<i class="dot dot-6"><b></b></i>
+					<i class="dot dot-7"><b></b></i>
+				</div>
+			</div>
+		</div>
+		<div class="section page4 fp-section fp-table" data-anchor="f">
+			<div class="fp-tableCell">
+				<div class="txt"><img src="assets/298722013720390.png"></div>
+				<div class="dots">
+					<i class="dot dot-1"><b></b></i>
+					<i class="dot dot-2"><b></b></i>
+					<i class="dot dot-3"><b></b></i>
+					<i class="dot dot-4"><b></b></i>
+					<i class="dot dot-5"><b></b></i>
+				</div>
+			</div>
+		</div>
+		<div class="section page5 fp-section fp-table" data-anchor="u">
+			<div class="fp-tableCell">
+				<div class="txt"><img src="assets/065203017980180.png" alt="唯耐心 不负所爱"></div>
+				<div class="txt txt-bottom"><img src="assets/44202302500150.png" alt="UP2017腾讯互动娱乐年度发布会"></div>
+			</div>
+		</div>
+	</div>
+	<script src="js/main.js"></script>
+</body>
+
+</html>
