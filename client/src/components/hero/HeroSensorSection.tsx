@@ -1,18 +1,18 @@
 /**
  * HeroSensorSection.tsx — 6 屏滚动叙事容器
- * 
- * 进度指示器：编号 + 阶段名（01 纱线 / 02 构网 / 03 加工 / 04 成型 / 05 受压 / 06 读出）
- * 背景：#0a0e1a 深黑
+ *
+ * 通过滚动驱动 Three.js 主场景，并叠加广告片式信息层。
  */
 import { useEffect, useRef, useState, lazy, Suspense } from 'react';
+import HeroCopy from './HeroCopy';
 
 const SensorScene = lazy(() => import('./SensorScene'));
 
 const STAGES = [
-  { id: '01', name: '纱线' },
-  { id: '02', name: '构网' },
-  { id: '03', name: '加工' },
-  { id: '04', name: '成型' },
+  { id: '01', name: '柔性' },
+  { id: '02', name: '密布' },
+  { id: '03', name: '死折' },
+  { id: '04', name: '封装' },
   { id: '05', name: '受压' },
   { id: '06', name: '读出' },
 ];
@@ -66,6 +66,8 @@ export default function HeroSensorSection() {
             <SensorScene scrollProgress={scrollProgress} />
           </Suspense>
         )}
+
+        <HeroCopy scrollProgress={scrollProgress} />
 
         {/* 进度指示器 — 右下角：编号 + 阶段名 */}
         <div
@@ -126,7 +128,7 @@ export default function HeroSensorSection() {
                 fontFamily: "'Space Grotesk', sans-serif",
               }}
             >
-              SCROLL
+              SCROLL THE FILM
             </span>
             <svg width="16" height="24" viewBox="0 0 16 24" fill="none" style={{ opacity: 0.25 }}>
               <path d="M8 4V20M8 20L2 14M8 20L14 14" stroke="white" strokeWidth="1.5" />

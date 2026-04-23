@@ -69,6 +69,41 @@ const MODEL_SPECS: ModelSpec[] = [
   },
 ];
 
+const MORPH_STORIES: Record<
+  string,
+  {
+    eyebrow: string;
+    title: string;
+    summary: string;
+    points: string[];
+  }
+> = {
+  MUSHROOM: {
+    eyebrow: 'Flexible Sensor Core',
+    title: '柔性传感底层',
+    summary: '作为同一套柔性压力感知基底，它先展示材料级的柔性、密布和可形变能力，再继续进入具体终端场景。',
+    points: ['贴合曲面与软性模组', '为小点距采样提供底层结构', '为后续床、座椅、机器人共用同一传感逻辑'],
+  },
+  BED: {
+    eyebrow: 'Realtime Monitor',
+    title: '床垫实时监控与报警',
+    summary: '当传感层进入床垫场景，可以持续跟踪压力分布、离床状态和局部异常，并联动监护或报警逻辑。',
+    points: ['监测翻身、久压与离床状态', '对局部高压区做异常提示', '接入养老、病房和睡眠监测系统'],
+  },
+  CHAIR: {
+    eyebrow: 'Adaptive Adjustment',
+    title: '座椅实时调节',
+    summary: '同一套柔性点阵进入座椅后，可以实时识别受压中心与姿态偏移，为坐姿调节和分区反馈提供输入。',
+    points: ['识别左右受力与坐姿偏移', '驱动分区支撑或充放气调节', '支持办公、车载和康复座椅'],
+  },
+  ROBOT: {
+    eyebrow: 'Realtime Sensing',
+    title: '机器人实时感应',
+    summary: '部署到机器人接触表面后，这套传感层可以把触碰、抓握和局部压强直接翻译成实时触压反馈。',
+    points: ['感知接触发生与受力变化', '为抓握控制提供触压输入', '支持柔性触觉皮肤与协作机器人'],
+  },
+};
+
 function smoothstep(start: number, end: number, value: number) {
   const t = THREE.MathUtils.clamp((value - start) / (end - start), 0, 1);
   return t * t * (3 - 2 * t);
@@ -561,6 +596,7 @@ export default function ParticleMorphSection() {
       }
 
       let displayOffsetX = morphTargets.length > 0 ? getModelOffsetX(activeIndex) : 0;
+
       if (morphTargets.length > 1) {
         const maxIndex = morphTargets.length - 1;
         const lowerIndex = Math.min(maxIndex, Math.floor(morphPath));
@@ -710,6 +746,10 @@ export default function ParticleMorphSection() {
     };
   }, []);
 
+  const activeSpec = MODEL_SPECS.find((spec) => spec.label === activeLabel) ?? MODEL_SPECS[0];
+  const activeStory = MORPH_STORIES[activeLabel] ?? MORPH_STORIES.MUSHROOM;
+  const activeGlow = `${activeSpec.color}33`;
+
   return (
     <section
       ref={sectionRef}
@@ -755,8 +795,63 @@ export default function ParticleMorphSection() {
             >
               这一段现在直接以 shroom 的粒子形态开场，不再经过最开始那团点云。滚轮每触发一次，
               粒子就按左到右或右到左的波前扫动，依次完成蘑菇到床、床到座椅、座椅到机器人的完整过渡，
-              同时整体落点保持左、右、左、右的交替分布。
+              同时整体落点保持左、右、左、右的交替分布。到床时聚焦实时监控报警，到座椅时聚焦实时调节，
+              到机器人时则聚焦实时触压感应。
             </p>
+
+            <div
+              className="mt-8 max-w-xl rounded-[28px] p-6 md:p-7"
+              style={{
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.1), rgba(255,255,255,0.03))',
+                border: `1px solid ${activeGlow}`,
+                boxShadow: `0 28px 90px ${activeGlow}`,
+                backdropFilter: 'blur(18px)',
+              }}
+            >
+              <div
+                className="text-[11px] tracking-[0.26em] uppercase"
+                style={{
+                  color: 'rgba(255,255,255,0.34)',
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}
+              >
+                {activeStory.eyebrow}
+              </div>
+              <h3
+                className="mt-3 text-2xl font-bold md:text-3xl"
+                style={{
+                  color: '#ffffff',
+                  fontFamily: "'Space Grotesk', sans-serif",
+                }}
+              >
+                {activeStory.title}
+              </h3>
+              <p className="mt-4 text-sm leading-7 md:text-base" style={{ color: 'rgba(255,255,255,0.64)' }}>
+                {activeStory.summary}
+              </p>
+              <div className="mt-5 grid gap-3">
+                {activeStory.points.map((point) => (
+                  <div
+                    key={point}
+                    className="rounded-2xl px-4 py-3"
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                    }}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span
+                        className="mt-1 h-2 w-2 rounded-full"
+                        style={{ background: activeSpec.color, boxShadow: `0 0 18px ${activeSpec.color}` }}
+                      />
+                      <span className="text-sm leading-6" style={{ color: 'rgba(255,255,255,0.78)' }}>
+                        {point}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
