@@ -1,10 +1,10 @@
 # 架构文档
 
-> 本文档由 Codex 维护。最后更新于：2026-04-21
+> 本文档由 Codex 维护。最后更新于：2026-04-23
 
 ## 1. 项目概览
 
-`fiber-sensor` 是一个基于 React + Vite + Three.js 的单页交互演示项目，用来展示纤维压力传感器的 6 段滚动叙事、3D 受压形变以及最终的压力点云读出效果。当前首页在主传感器动画后新增了一段模型粒子变形场景，以 `shroom.glb -> bed.glb -> chair3.glb -> jiqirenGggg.fbx` 的顺序做滚轮触发的点云聚合切换。开发态由 Vite 提供前端服务，生产态由一个极简 Express 服务托管 `dist/public` 静态资源。
+`fiber-sensor` 是一个基于 React + Vite + Three.js 的单页交互演示项目，用来展示纤维压力传感器的 6 段滚动叙事、3D 受压形变以及最终的压力点云读出效果。当前首页在主传感器动画后新增了一段模型粒子变形场景，以 `shroom.glb -> bed.glb -> chair3.glb -> jiqirenGggg.fbx -> foot-optimized.glb` 的顺序做滚轮触发的点云聚合切换。开发态由 Vite 提供前端服务，生产态由一个极简 Express 服务托管 `dist/public` 静态资源。
 
 ## 2. 技术栈
 
@@ -12,7 +12,7 @@
 | :--- | :--- | :--- |
 | 前端框架 | React 19 | `react` + `react-dom` |
 | 构建工具 | Vite 7 | 根 `dev/build/preview` 入口 |
-| 3D 渲染 | Three.js | `client/src/components/hero/SensorScene.tsx` |
+| 3D 渲染 | Three.js | `client/src/components/hero/SensorScene.tsx` + `client/src/components/sections/ParticleMorphSection.tsx` |
 | 路由 | Wouter | SPA 路由切换 |
 | 样式 | Tailwind CSS 4 | 配合自定义 `index.css` |
 | 后端框架 | Express 4 | 仅用于生产态静态托管 |
@@ -53,7 +53,7 @@
 | `client/src/components/hero` | 首页主舞台，包含滚动容器、Three.js 场景、HUD 和传感器数据 |
 | `client/src/components/sections` | 首页后续扩展 section，当前包含模型粒子变形场景 |
 | `client/src/components/ui` | Radix/Shadcn 风格的基础 UI 组件 |
-| `model` | 本地上传的 shroom、床、座椅、机器人模型资产 |
+| `model` | 本地上传的 shroom、床、座椅、机器人、foot 模型资产，以及用于 morph 的 `foot-optimized.glb` 轻量版 |
 | `server` | 生产环境静态托管入口 |
 | `shared` | 前后端共享常量 |
 | `patches` | pnpm patched dependency 文件 |
@@ -77,6 +77,7 @@ graph TD
   M --> O[model/bed.glb]
   M --> P[model/chair3.glb]
   M --> Q[model/jiqirenGggg.fbx]
+  M --> R[model/foot-optimized.glb]
   J[server/index.ts] --> K[dist/public]
   L[vite.config.ts] --> A
   L --> J
@@ -93,7 +94,7 @@ graph TD
 4. 产品表面纹理叠加
    产品表面基础纹理来自 `FABRIC_TEXTURE_URL`，品牌 logo 通过透明 PNG 作为单独 decal 贴在产品表面，避免白底被烘进底图。
 5. 模型粒子变形流程
-   `ParticleMorphSection` 通过 `GLTFLoader` / `FBXLoader` 读取本地 `shroom`、床、座椅、机器人模型，使用 `MeshSurfaceSampler` 采样表面点云；这批粒子现在直接以 `shroom` 形态开场，不再经过最开始的热力点云桥接，然后由滚轮按顺序触发 `shroom -> bed -> chair -> robot` 的完整 morph。每次过渡都带随机分批生成、完成后的短暂停顿，以及左到右 / 右到左交替的扫动方向；模型整体落点按左、右、左、右交替切换。
+   `ParticleMorphSection` 通过 `GLTFLoader` / `FBXLoader` 读取本地 `shroom`、床、座椅、机器人、foot 模型，使用 `MeshSurfaceSampler` 采样表面点云；其中 `foot.glb` 体积过大，当前前端实际切到脚本生成的 `foot-optimized.glb` 轻量版。粒子序列现在直接以 `shroom` 形态开场，不再经过最开始的热力点云桥接，然后由滚轮按顺序触发 `shroom -> bed -> chair -> robot -> foot` 的完整 morph。每次过渡都带随机分批生成、完成后的短暂停顿，以及左到右 / 右到左交替的扫动方向；模型整体落点按左、右、左、右、左交替切换。页面左侧现已提供 `Foot Tilt X / Y / Z` 和 `Foot Position X / Y / Z` 六条滑杆，可实时调节 foot 形态在 morph 链中的姿态与空间位置。
 
 ## 5. API 端点
 
@@ -147,6 +148,10 @@ graph TD
 | 2026-04-21 | 加入停顿与分批生成 | 参考 `3d-particle-scene-master` 把滚轮交互改为单次触发的完整过渡，增加随机分批生成和过渡完成后的停顿时间 |
 | 2026-04-21 | 首模型切换为蘑菇 | 将第二段第一个目标模型从 `bed.glb` 替换为 `蘑菇.obj`，并补充 `OBJLoader` 支持 |
 | 2026-04-21 | 直接从 shroom 开场的四段 morph | 删除第二段最开始的热力点云桥接，改为直接显示 `shroom.glb`，并把顺序补成 `shroom -> bed -> chair -> robot` |
+| 2026-04-23 | Foot 接到机器人后 | 在 `ParticleMorphSection` 中新增 `foot.glb`，将模型链扩展为 `shroom -> bed -> chair -> robot -> foot` |
+| 2026-04-23 | Foot 轻量化与姿态控制 | 为 `foot.glb` 生成 `foot-optimized.glb` 轻量版，并在粒子场景中增加 `Foot Tilt X / Y / Z` 控制 |
+| 2026-04-23 | 修复 Foot 轻量版 GLB 格式 | 修正 `optimize_foot_glb.py` 对 JSON chunk 的填充方式，避免 `foot-optimized.glb` 被 `GLTFLoader` 判定为无效文件 |
+| 2026-04-23 | Foot 增加位置调节 | 为 foot morph 目标补充 `Foot Position X / Y / Z` 滑杆，让脚模型支持独立平移微调 |
 
 ## 9. 更新日志
 
@@ -165,3 +170,7 @@ graph TD
 | 2026-04-21 | 优化重构 | 将滚轮控制从连续拖值改为单次触发完整 morph，加入随机延迟式粒子生成和生成结束后的 hold 时间，避免机器人未完整成型就被下一次输入打断 |
 | 2026-04-21 | 优化重构 | 将第二段首个粒子目标由床垫改为 `蘑菇.obj`，同步更新加载器、界面文案和模型顺序说明 |
 | 2026-04-21 | 优化重构 | 移除第二段开场的热力点云桥接，改成直接以 `shroom.glb` 的粒子形态开场，并接续 `bed -> chair -> robot` 的四段滚轮 morph |
+| 2026-04-23 | 新增功能 | 将 `foot.glb` 作为新的粒子 morph 目标接到机器人后面，首页第二段更新为 `Mushroom / Bed / Chair / Robot / Foot` 五段滚轮切换 |
+| 2026-04-23 | 优化重构 | 新增 `scripts/optimize_foot_glb.py` 生成 `foot-optimized.glb`，把脚模型从约 160MB 压到约 1MB，并在 `ParticleMorphSection` 中加入 foot 三轴角度滑杆 |
+| 2026-04-23 | 修复缺陷 | 修正 `scripts/optimize_foot_glb.py` 生成 GLB 时的 JSON chunk padding，解决 `foot-optimized.glb` 运行时加载失败问题 |
+| 2026-04-23 | 新增功能 | 在 `ParticleMorphSection` 中为 foot 新增 `Foot Position X / Y / Z` 滑杆，并把平移偏移仅应用到 `FOOT` morph 目标 |

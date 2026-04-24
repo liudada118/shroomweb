@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -8,6 +8,7 @@ const MUSHROOM_MODEL_URL = new URL('../../../../model/shroom.glb', import.meta.u
 const BED_MODEL_URL = new URL('../../../../model/bed.glb', import.meta.url).href;
 const CHAIR_MODEL_URL = new URL('../../../../model/chair3.glb', import.meta.url).href;
 const ROBOT_MODEL_URL = new URL('../../../../model/jiqirenGggg.fbx', import.meta.url).href;
+const FOOT_MODEL_URL = new URL('../../../../model/foot-optimized.glb', import.meta.url).href;
 
 const PARTICLE_COUNT = 7200;
 const SWEEP_EDGE_WIDTH = 0.34;
@@ -33,6 +34,22 @@ type MorphTarget = {
   colors: Float32Array;
   sweepWeights: Float32Array;
 };
+
+type FootControlState = {
+  rotationXDeg: number;
+  rotationYDeg: number;
+  rotationZDeg: number;
+  offsetX: number;
+  offsetY: number;
+  offsetZ: number;
+};
+
+const DEFAULT_FOOT_ROTATION_X_DEG = 0;
+const DEFAULT_FOOT_ROTATION_Y_DEG = 0;
+const DEFAULT_FOOT_ROTATION_Z_DEG = 0;
+const DEFAULT_FOOT_OFFSET_X = 0;
+const DEFAULT_FOOT_OFFSET_Y = 0;
+const DEFAULT_FOOT_OFFSET_Z = 0;
 
 const MODEL_SPECS: ModelSpec[] = [
   {
@@ -66,6 +83,14 @@ const MODEL_SPECS: ModelSpec[] = [
     loader: 'fbx',
     color: '#f59e0b',
     targetSize: 4.4,
+  },
+  {
+    label: 'FOOT',
+    title: 'Foot',
+    url: FOOT_MODEL_URL,
+    loader: 'gltf',
+    color: '#fb7185',
+    targetSize: 4.2,
   },
 ];
 
@@ -303,8 +328,35 @@ export default function ParticleMorphSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [activeLabel, setActiveLabel] = useState('MUSHROOM');
-  const [loadingText, setLoadingText] = useState('准备蘑菇到床、座椅、机器人的粒子变形动画...');
+  const [loadingText, setLoadingText] = useState('Preparing particle morph: mushroom, bed, chair, robot, foot...');
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [footRotation, setFootRotation] = useState<FootControlState>({
+    rotationXDeg: DEFAULT_FOOT_ROTATION_X_DEG,
+    rotationYDeg: DEFAULT_FOOT_ROTATION_Y_DEG,
+    rotationZDeg: DEFAULT_FOOT_ROTATION_Z_DEG,
+    offsetX: DEFAULT_FOOT_OFFSET_X,
+    offsetY: DEFAULT_FOOT_OFFSET_Y,
+    offsetZ: DEFAULT_FOOT_OFFSET_Z,
+  });
+  const footRotationRef = useRef<FootControlState>({
+    rotationXDeg: DEFAULT_FOOT_ROTATION_X_DEG,
+    rotationYDeg: DEFAULT_FOOT_ROTATION_Y_DEG,
+    rotationZDeg: DEFAULT_FOOT_ROTATION_Z_DEG,
+    offsetX: DEFAULT_FOOT_OFFSET_X,
+    offsetY: DEFAULT_FOOT_OFFSET_Y,
+    offsetZ: DEFAULT_FOOT_OFFSET_Z,
+  });
+
+  const updateFootRotation =
+    (key: keyof FootControlState) =>
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const nextValue = Number(event.target.value);
+      setFootRotation((current) => {
+        const nextState = { ...current, [key]: nextValue };
+        footRotationRef.current = nextState;
+        return nextState;
+      });
+    };
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -363,6 +415,10 @@ export default function ParticleMorphSection() {
     const revealJitter = Float32Array.from(
       Array.from({ length: PARTICLE_COUNT }, () => Math.random() * POINT_REVEAL_JITTER),
     );
+    const footEuler = new THREE.Euler();
+    const footQuaternion = new THREE.Quaternion();
+    const sourcePoint = new THREE.Vector3();
+    const destinationPoint = new THREE.Vector3();
 
     const morphGeometry = new THREE.BufferGeometry();
     morphGeometry.setAttribute('position', new THREE.BufferAttribute(renderPositions, 3));
@@ -397,6 +453,28 @@ export default function ParticleMorphSection() {
       if (latestLabel === label) return;
       latestLabel = label;
       setActiveLabel(label);
+    };
+
+    const readTargetPoint = (
+      target: MorphTarget,
+      index: number,
+      offsetX: number,
+      output: THREE.Vector3,
+    ) => {
+      output.set(
+        target.positions[index] + offsetX,
+        target.positions[index + 1],
+        target.positions[index + 2],
+      );
+
+      if (target.label === 'FOOT') {
+        output.applyQuaternion(footQuaternion);
+        output.x += footRotationRef.current.offsetX;
+        output.y += footRotationRef.current.offsetY;
+        output.z += footRotationRef.current.offsetZ;
+      }
+
+      return output;
     };
 
     const observer = new IntersectionObserver(
@@ -501,9 +579,9 @@ export default function ParticleMorphSection() {
             }
             morphGeometry.attributes.position.needsUpdate = true;
             morphGeometry.attributes.color.needsUpdate = true;
-            setLoadingText('蘑菇粒子形态已就绪，继续加载床、座椅和机器人...');
+            setLoadingText('Mushroom particles are ready. Loading bed, chair, robot, and foot...');
           } else {
-            setLoadingText(`已加载 ${loadedTargets.length}/${MODEL_SPECS.length} 个模型，继续补全剩余形态...`);
+            setLoadingText(`Loaded ${loadedTargets.length}/${MODEL_SPECS.length} models. Sampling the remaining targets...`);
           }
         }
 
@@ -519,11 +597,11 @@ export default function ParticleMorphSection() {
         holdTimerMs = 0;
         latestLabel = loadedTargets[0].label;
         setActiveLabel(loadedTargets[0].label);
-        setLoadingText('滚轮触发一次完整过渡：蘑菇、床、座椅、机器人按左、右、左、右交替落位。');
+        setLoadingText('Wheel once per morph: Mushroom, Bed, Chair, Robot, Foot alternating left/right across the stage.');
       } catch (error) {
         console.error(error);
         if (!disposed) {
-          setLoadError('模型加载失败，请检查文件格式或路径。');
+          setLoadError('Failed to load one or more morph targets. Check the model path or file format.');
         }
       }
     };
@@ -597,6 +675,13 @@ export default function ParticleMorphSection() {
       morphPoints.rotation.x = THREE.MathUtils.lerp(-0.3, -0.12, cameraPhase);
 
       if (visibleRef.current && morphTargets.length > 0) {
+        footEuler.set(
+          THREE.MathUtils.degToRad(footRotationRef.current.rotationXDeg),
+          THREE.MathUtils.degToRad(footRotationRef.current.rotationYDeg),
+          THREE.MathUtils.degToRad(footRotationRef.current.rotationZDeg),
+        );
+        footQuaternion.setFromEuler(footEuler);
+
         let sourceTarget = morphTargets[activeIndex];
         let destinationTarget = morphTargets[activeIndex];
         let revealProgress = 1;
@@ -627,9 +712,10 @@ export default function ParticleMorphSection() {
 
         for (let index = 0; index < livePositions.length; index += 3) {
           const pointIndex = index / 3;
-          let targetX = sourceTarget.positions[index] + sourceOffsetX;
-          let targetY = sourceTarget.positions[index + 1];
-          let targetZ = sourceTarget.positions[index + 2];
+          readTargetPoint(sourceTarget, index, sourceOffsetX, sourcePoint);
+          let targetX = sourcePoint.x;
+          let targetY = sourcePoint.y;
+          let targetZ = sourcePoint.z;
           let colorR = sourceTarget.colors[index];
           let colorG = sourceTarget.colors[index + 1];
           let colorB = sourceTarget.colors[index + 2];
@@ -643,13 +729,10 @@ export default function ParticleMorphSection() {
               revealProgress,
             );
 
-            targetX = THREE.MathUtils.lerp(
-              sourceTarget.positions[index] + sourceOffsetX,
-              destinationTarget.positions[index] + destinationOffsetX,
-              localProgress,
-            );
-            targetY = THREE.MathUtils.lerp(sourceTarget.positions[index + 1], destinationTarget.positions[index + 1], localProgress);
-            targetZ = THREE.MathUtils.lerp(sourceTarget.positions[index + 2], destinationTarget.positions[index + 2], localProgress);
+            readTargetPoint(destinationTarget, index, destinationOffsetX, destinationPoint);
+            targetX = THREE.MathUtils.lerp(sourcePoint.x, destinationPoint.x, localProgress);
+            targetY = THREE.MathUtils.lerp(sourcePoint.y, destinationPoint.y, localProgress);
+            targetZ = THREE.MathUtils.lerp(sourcePoint.z, destinationPoint.z, localProgress);
             colorR = THREE.MathUtils.lerp(sourceTarget.colors[index], destinationTarget.colors[index], localProgress);
             colorG = THREE.MathUtils.lerp(sourceTarget.colors[index + 1], destinationTarget.colors[index + 1], localProgress);
             colorB = THREE.MathUtils.lerp(sourceTarget.colors[index + 2], destinationTarget.colors[index + 2], localProgress);
@@ -746,7 +829,7 @@ export default function ParticleMorphSection() {
                 fontFamily: "'Space Grotesk', sans-serif",
               }}
             >
-              直接从 shroom 变到床、座椅，再到机器人
+              直接从 shroom 变到床、座椅、机器人，再到 foot
             </h2>
 
             <p
@@ -754,9 +837,150 @@ export default function ParticleMorphSection() {
               style={{ color: 'rgba(255,255,255,0.56)' }}
             >
               这一段现在直接以 shroom 的粒子形态开场，不再经过最开始那团点云。滚轮每触发一次，
-              粒子就按左到右或右到左的波前扫动，依次完成蘑菇到床、床到座椅、座椅到机器人的完整过渡，
-              同时整体落点保持左、右、左、右的交替分布。
+              粒子就按左到右或右到左的波前扫动，依次完成蘑菇到床、床到座椅、座椅到机器人、机器人到 foot
+              的完整过渡，同时整体落点保持左、右、左、右、左的交替分布。
             </p>
+
+            <div
+              className="mt-8 max-w-xl rounded-[28px] px-5 py-5 pointer-events-auto"
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                backdropFilter: 'blur(18px)',
+              }}
+            >
+              <div
+                className="mb-4 text-xs tracking-[0.28em] uppercase"
+                style={{
+                  color: 'rgba(255,255,255,0.34)',
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}
+              >
+                Foot Controls
+              </div>
+
+              <div className="grid gap-4">
+                <label className="block">
+                  <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.24em]">
+                    <span style={{ color: 'rgba(255,255,255,0.56)', fontFamily: "'JetBrains Mono', monospace" }}>
+                      Foot Tilt X
+                    </span>
+                    <span style={{ color: '#fb7185', fontFamily: "'JetBrains Mono', monospace" }}>
+                      {footRotation.rotationXDeg.toFixed(0)} deg
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-360"
+                    max="360"
+                    step="1"
+                    value={footRotation.rotationXDeg}
+                    onChange={updateFootRotation('rotationXDeg')}
+                    className="w-full accent-rose-400"
+                  />
+                </label>
+
+                <label className="block">
+                  <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.24em]">
+                    <span style={{ color: 'rgba(255,255,255,0.56)', fontFamily: "'JetBrains Mono', monospace" }}>
+                      Foot Tilt Y
+                    </span>
+                    <span style={{ color: '#fb7185', fontFamily: "'JetBrains Mono', monospace" }}>
+                      {footRotation.rotationYDeg.toFixed(0)} deg
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-360"
+                    max="360"
+                    step="1"
+                    value={footRotation.rotationYDeg}
+                    onChange={updateFootRotation('rotationYDeg')}
+                    className="w-full accent-rose-400"
+                  />
+                </label>
+
+                <label className="block">
+                  <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.24em]">
+                    <span style={{ color: 'rgba(255,255,255,0.56)', fontFamily: "'JetBrains Mono', monospace" }}>
+                      Foot Tilt Z
+                    </span>
+                    <span style={{ color: '#fb7185', fontFamily: "'JetBrains Mono', monospace" }}>
+                      {footRotation.rotationZDeg.toFixed(0)} deg
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-360"
+                    max="360"
+                    step="1"
+                    value={footRotation.rotationZDeg}
+                    onChange={updateFootRotation('rotationZDeg')}
+                    className="w-full accent-rose-400"
+                  />
+                </label>
+
+                <label className="block">
+                  <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.24em]">
+                    <span style={{ color: 'rgba(255,255,255,0.56)', fontFamily: "'JetBrains Mono', monospace" }}>
+                      Foot Position X
+                    </span>
+                    <span style={{ color: '#fb7185', fontFamily: "'JetBrains Mono', monospace" }}>
+                      {footRotation.offsetX.toFixed(2)}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-4"
+                    max="4"
+                    step="0.01"
+                    value={footRotation.offsetX}
+                    onChange={updateFootRotation('offsetX')}
+                    className="w-full accent-rose-400"
+                  />
+                </label>
+
+                <label className="block">
+                  <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.24em]">
+                    <span style={{ color: 'rgba(255,255,255,0.56)', fontFamily: "'JetBrains Mono', monospace" }}>
+                      Foot Position Y
+                    </span>
+                    <span style={{ color: '#fb7185', fontFamily: "'JetBrains Mono', monospace" }}>
+                      {footRotation.offsetY.toFixed(2)}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-4"
+                    max="4"
+                    step="0.01"
+                    value={footRotation.offsetY}
+                    onChange={updateFootRotation('offsetY')}
+                    className="w-full accent-rose-400"
+                  />
+                </label>
+
+                <label className="block">
+                  <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.24em]">
+                    <span style={{ color: 'rgba(255,255,255,0.56)', fontFamily: "'JetBrains Mono', monospace" }}>
+                      Foot Position Z
+                    </span>
+                    <span style={{ color: '#fb7185', fontFamily: "'JetBrains Mono', monospace" }}>
+                      {footRotation.offsetZ.toFixed(2)}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-4"
+                    max="4"
+                    step="0.01"
+                    value={footRotation.offsetZ}
+                    onChange={updateFootRotation('offsetZ')}
+                    className="w-full accent-rose-400"
+                  />
+                </label>
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
@@ -805,7 +1029,7 @@ export default function ParticleMorphSection() {
                   fontFamily: "'JetBrains Mono', monospace",
                 }}
               >
-                Wheel Morph: Down Mushroom / Bed / Chair / Robot
+                Wheel Morph: Down Mushroom / Bed / Chair / Robot / Foot
               </div>
             </div>
           </div>
