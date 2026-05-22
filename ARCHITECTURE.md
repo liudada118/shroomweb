@@ -1,10 +1,10 @@
 # 架构文档
 
-> 本文档由 Codex 维护。最后更新于：2026-04-23
+> 本文档由 Codex 维护。最后更新于：2026-05-22
 
 ## 1. 项目概览
 
-`fiber-sensor` 是一个基于 React + Vite + Three.js 的单页交互演示项目，用来展示纤维压力传感器的 6 段滚动叙事、3D 受压形变以及最终的压力点云读出效果。当前首页在主传感器动画后新增了一段模型粒子变形场景，以 `shroom.glb -> bed.glb -> chair3.glb -> jiqirenGggg.fbx -> foot-optimized.glb` 的顺序做滚轮触发的点云聚合切换。开发态由 Vite 提供前端服务，生产态由一个极简 Express 服务托管 `dist/public` 静态资源。
+`fiber-sensor` 是一个基于 React + Vite + Three.js 的单页交互演示项目，用来展示模型粒子变形、滚轮触发的点云聚合切换以及柔性压力传感器的应用场景。当前首页已去掉原第一屏传感器主动画，进入页面后直接展示 `shroom.glb -> bed.glb -> chair3.glb -> jiqirenGggg.fbx -> foot-optimized.glb` 的粒子 morph 流程。开发态由 Vite 提供前端服务，生产态由一个极简 Express 服务托管 `dist/public` 静态资源。
 
 ## 2. 技术栈
 
@@ -12,7 +12,7 @@
 | :--- | :--- | :--- |
 | 前端框架 | React 19 | `react` + `react-dom` |
 | 构建工具 | Vite 7 | 根 `dev/build/preview` 入口 |
-| 3D 渲染 | Three.js | `client/src/components/hero/SensorScene.tsx` + `client/src/components/sections/ParticleMorphSection.tsx` |
+| 3D 渲染 | Three.js | 当前首页使用 `client/src/components/sections/ParticleMorphSection.tsx`，旧传感器场景保留在 `client/src/components/hero` |
 | 路由 | Wouter | SPA 路由切换 |
 | 样式 | Tailwind CSS 4 | 配合自定义 `index.css` |
 | 后端框架 | Express 4 | 仅用于生产态静态托管 |
@@ -50,7 +50,7 @@
 | 目录 | 主要功能 |
 | :--- | :--- |
 | `client/src/pages` | 页面级路由组件，目前首页核心是 `Home.tsx` |
-| `client/src/components/hero` | 首页主舞台，包含滚动容器、Three.js 场景、HUD 和传感器数据 |
+| `client/src/components/hero` | 旧版传感器主舞台，当前首页已不再渲染 |
 | `client/src/components/sections` | 首页后续扩展 section，当前包含模型粒子变形场景 |
 | `client/src/components/ui` | Radix/Shadcn 风格的基础 UI 组件 |
 | `model` | 本地上传的 shroom、床、座椅、机器人、foot 模型资产，以及用于 morph 的 `foot-optimized.glb` 轻量版 |
@@ -68,11 +68,7 @@ graph TD
   B --> C[Wouter Router]
   C --> D[pages/Home.tsx]
   D --> E[components/Navbar.tsx]
-  D --> F[components/hero/HeroSensorSection.tsx]
   D --> M[components/sections/ParticleMorphSection.tsx]
-  F --> G[components/hero/SensorScene.tsx]
-  G --> H[sensorData.ts]
-  G --> I[remote fabric/logo textures]
   M --> N[model/shroom.glb]
   M --> O[model/bed.glb]
   M --> P[model/chair3.glb]
@@ -86,15 +82,9 @@ graph TD
 ### 4.2 主要数据流
 
 1. 首页渲染流程
-   `main.tsx` 挂载 `App`，`wouter` 将 `/` 路由到 `Home`，首页当前渲染 `Navbar`、传感器主动画以及后续的粒子模型 section。
-2. 滚动驱动 3D 场景
-   `HeroSensorSection` 监听窗口滚动并计算 `scrollProgress`，再把该进度传给 `SensorScene`。
-3. 传感器数据驱动可视化
-   `SensorScene` 在 `updateScene` 中读取 `SENSOR_FRAMES`，将 32x32 原始压力数据插值、平滑后驱动产品形变、热图叠加层和最终点云高度/颜色。
-4. 产品表面纹理叠加
-   产品表面基础纹理来自 `FABRIC_TEXTURE_URL`，品牌 logo 通过透明 PNG 作为单独 decal 贴在产品表面，避免白底被烘进底图。
-5. 模型粒子变形流程
-   `ParticleMorphSection` 通过 `GLTFLoader` / `FBXLoader` 读取本地 `shroom`、床、座椅、机器人、foot 模型，使用 `MeshSurfaceSampler` 采样表面点云；其中 `foot.glb` 体积过大，当前前端实际切到脚本生成的 `foot-optimized.glb` 轻量版。粒子序列现在直接以 `shroom` 形态开场，不再经过最开始的热力点云桥接，然后由滚轮按顺序触发 `shroom -> bed -> chair -> robot -> foot` 的完整 morph。每次过渡都带随机分批生成、完成后的短暂停顿，以及左到右 / 右到左交替的扫动方向；模型整体落点按左、右、左、右、左交替切换。页面左侧现已提供 `Foot Tilt X / Y / Z` 和 `Foot Position X / Y / Z` 六条滑杆，可实时调节 foot 形态在 morph 链中的姿态与空间位置。
+   `main.tsx` 挂载 `App`，`wouter` 将 `/` 路由到 `Home`，首页当前渲染 `Navbar` 和懒加载的 `ParticleMorphSection`，原第一屏 `HeroSensorSection` 已从首页渲染链路移除。
+2. 模型粒子变形流程
+   `ParticleMorphSection` 通过 `GLTFLoader` / `FBXLoader` 读取本地 `shroom`、床、座椅、机器人、foot 模型，使用 `MeshSurfaceSampler` 采样表面点云；其中 `foot.glb` 体积过大，当前前端实际切到脚本生成的 `foot-optimized.glb` 轻量版。粒子序列现在直接以 `shroom` 形态开场，不再经过最开始的热力点云桥接，然后由滚轮按顺序触发 `shroom -> bed -> chair -> robot -> foot` 的完整 morph。每次过渡都带随机分批生成、完成后的短暂停顿，以及左到右 / 右到左交替的扫动方向；模型整体落点按左、右、左、右、左交替切换。bed 与 foot 的姿态和位置参数保留为内部默认预设，页面已去掉调参滑杆面板，左侧增加“对传感器的视觉表达，和场景衍生 -- SHROOM”主题文案；底部阶段标题改为 `SHROOM/SHROOM`、`关怀/床`、`定制/座椅`、`精密/机器人`、`LAB/足底`。bed 当前默认预设为 `47° / -119° / 0° / 3.76 / 2.06 / -0.80`，foot 当前默认预设为 `98° / 70° / -1° / -2.56 / 2.57 / -0.05`。
 
 ## 5. API 端点
 
@@ -152,6 +142,12 @@ graph TD
 | 2026-04-23 | Foot 轻量化与姿态控制 | 为 `foot.glb` 生成 `foot-optimized.glb` 轻量版，并在粒子场景中增加 `Foot Tilt X / Y / Z` 控制 |
 | 2026-04-23 | 修复 Foot 轻量版 GLB 格式 | 修正 `optimize_foot_glb.py` 对 JSON chunk 的填充方式，避免 `foot-optimized.glb` 被 `GLTFLoader` 判定为无效文件 |
 | 2026-04-23 | Foot 增加位置调节 | 为 foot morph 目标补充 `Foot Position X / Y / Z` 滑杆，让脚模型支持独立平移微调 |
+| 2026-05-22 | Foot 默认姿态预设 | 将 foot 的默认旋转和平移更新为 `98 / 70 / -1 / -2.56 / 2.57 / -0.05`，便于场景打开后直接落在目标构图 |
+| 2026-05-22 | 移除首页第一屏动画 | 从 `Home.tsx` 移除 `HeroSensorSection`，让首页直接进入模型粒子 morph 场景 |
+| 2026-05-22 | Bed 增加姿态与位置调节 | 为 bed morph 目标补充 `Bed Controls` 面板，支持三轴旋转和三轴位置实时微调 |
+| 2026-05-22 | Bed 默认姿态预设 | 将 bed 的默认旋转和平移更新为 `47 / -119 / 0 / 3.76 / 2.06 / -0.80`，便于床垫阶段直接使用目标构图 |
+| 2026-05-22 | 精简粒子场景界面 | 移除左侧文案和调参滑杆，将底部阶段标题更新为 `SHROOM/SHROOM`、`关怀/床`、`定制/座椅`、`精密/机器人`、`LAB/足底` |
+| 2026-05-22 | 增加左侧主题文案 | 在粒子场景左侧增加“对传感器的视觉表达，和场景衍生 -- SHROOM”，并放大 SHROOM 品牌字样以补足画面信息密度 |
 
 ## 9. 更新日志
 
@@ -174,3 +170,9 @@ graph TD
 | 2026-04-23 | 优化重构 | 新增 `scripts/optimize_foot_glb.py` 生成 `foot-optimized.glb`，把脚模型从约 160MB 压到约 1MB，并在 `ParticleMorphSection` 中加入 foot 三轴角度滑杆 |
 | 2026-04-23 | 修复缺陷 | 修正 `scripts/optimize_foot_glb.py` 生成 GLB 时的 JSON chunk padding，解决 `foot-optimized.glb` 运行时加载失败问题 |
 | 2026-04-23 | 新增功能 | 在 `ParticleMorphSection` 中为 foot 新增 `Foot Position X / Y / Z` 滑杆，并把平移偏移仅应用到 `FOOT` morph 目标 |
+| 2026-05-22 | 配置变更 | 将 `ParticleMorphSection` 中 foot 的默认旋转和平移参数更新为 `98 / 70 / -1 / -2.56 / 2.57 / -0.05` |
+| 2026-05-22 | 优化重构 | 去掉首页第一屏传感器动画渲染，`Home` 现在只保留导航和模型粒子 morph section |
+| 2026-05-22 | 新增功能 | 为 `ParticleMorphSection` 新增 `Bed Controls`，并复用模型控制面板同时管理 bed 与 foot 的旋转和平移参数 |
+| 2026-05-22 | 配置变更 | 将 `ParticleMorphSection` 中 bed 的默认旋转和平移参数更新为 `47 / -119 / 0 / 3.76 / 2.06 / -0.80` |
+| 2026-05-22 | 优化重构 | 移除 `ParticleMorphSection` 左侧说明文字和滑杆 UI，保留内部默认参数，并重命名底部阶段标题 |
+| 2026-05-22 | 界面优化 | 在 `ParticleMorphSection` 左侧补充 SHROOM 主题文案，并放大 SHROOM 字样，保持主画面留白但降低空旷感 |

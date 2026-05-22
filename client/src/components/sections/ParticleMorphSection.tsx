@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -21,6 +21,8 @@ const POINT_REVEAL_JITTER = 0.18;
 type ModelSpec = {
   label: string;
   title: string;
+  badgePrefix: string;
+  badgeTitle: string;
   url: string;
   loader: 'gltf' | 'fbx';
   color: string;
@@ -35,7 +37,7 @@ type MorphTarget = {
   sweepWeights: Float32Array;
 };
 
-type FootControlState = {
+type ModelControlState = {
   rotationXDeg: number;
   rotationYDeg: number;
   rotationZDeg: number;
@@ -44,17 +46,26 @@ type FootControlState = {
   offsetZ: number;
 };
 
-const DEFAULT_FOOT_ROTATION_X_DEG = 0;
-const DEFAULT_FOOT_ROTATION_Y_DEG = 0;
-const DEFAULT_FOOT_ROTATION_Z_DEG = 0;
-const DEFAULT_FOOT_OFFSET_X = 0;
-const DEFAULT_FOOT_OFFSET_Y = 0;
-const DEFAULT_FOOT_OFFSET_Z = 0;
+const DEFAULT_BED_ROTATION_X_DEG = 47;
+const DEFAULT_BED_ROTATION_Y_DEG = -119;
+const DEFAULT_BED_ROTATION_Z_DEG = 0;
+const DEFAULT_BED_OFFSET_X = 3.76;
+const DEFAULT_BED_OFFSET_Y = 2.06;
+const DEFAULT_BED_OFFSET_Z = -0.8;
+
+const DEFAULT_FOOT_ROTATION_X_DEG = 98;
+const DEFAULT_FOOT_ROTATION_Y_DEG = 70;
+const DEFAULT_FOOT_ROTATION_Z_DEG = -1;
+const DEFAULT_FOOT_OFFSET_X = -2.56;
+const DEFAULT_FOOT_OFFSET_Y = 2.57;
+const DEFAULT_FOOT_OFFSET_Z = -0.05;
 
 const MODEL_SPECS: ModelSpec[] = [
   {
     label: 'MUSHROOM',
     title: '蘑菇',
+    badgePrefix: 'SHROOM',
+    badgeTitle: 'SHROOM',
     url: MUSHROOM_MODEL_URL,
     loader: 'gltf',
     color: '#7dd3fc',
@@ -63,6 +74,8 @@ const MODEL_SPECS: ModelSpec[] = [
   {
     label: 'BED',
     title: '床',
+    badgePrefix: '关怀',
+    badgeTitle: '床',
     url: BED_MODEL_URL,
     loader: 'gltf',
     color: '#38bdf8',
@@ -71,6 +84,8 @@ const MODEL_SPECS: ModelSpec[] = [
   {
     label: 'CHAIR',
     title: '座椅',
+    badgePrefix: '定制',
+    badgeTitle: '座椅',
     url: CHAIR_MODEL_URL,
     loader: 'gltf',
     color: '#f8fafc',
@@ -79,6 +94,8 @@ const MODEL_SPECS: ModelSpec[] = [
   {
     label: 'ROBOT',
     title: '机器人',
+    badgePrefix: '精密',
+    badgeTitle: '机器人',
     url: ROBOT_MODEL_URL,
     loader: 'fbx',
     color: '#f59e0b',
@@ -87,6 +104,8 @@ const MODEL_SPECS: ModelSpec[] = [
   {
     label: 'FOOT',
     title: 'Foot',
+    badgePrefix: 'LAB',
+    badgeTitle: '足底',
     url: FOOT_MODEL_URL,
     loader: 'gltf',
     color: '#fb7185',
@@ -330,7 +349,15 @@ export default function ParticleMorphSection() {
   const [activeLabel, setActiveLabel] = useState('MUSHROOM');
   const [loadingText, setLoadingText] = useState('Preparing particle morph: mushroom, bed, chair, robot, foot...');
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [footRotation, setFootRotation] = useState<FootControlState>({
+  const bedControlRef = useRef<ModelControlState>({
+    rotationXDeg: DEFAULT_BED_ROTATION_X_DEG,
+    rotationYDeg: DEFAULT_BED_ROTATION_Y_DEG,
+    rotationZDeg: DEFAULT_BED_ROTATION_Z_DEG,
+    offsetX: DEFAULT_BED_OFFSET_X,
+    offsetY: DEFAULT_BED_OFFSET_Y,
+    offsetZ: DEFAULT_BED_OFFSET_Z,
+  });
+  const footRotationRef = useRef<ModelControlState>({
     rotationXDeg: DEFAULT_FOOT_ROTATION_X_DEG,
     rotationYDeg: DEFAULT_FOOT_ROTATION_Y_DEG,
     rotationZDeg: DEFAULT_FOOT_ROTATION_Z_DEG,
@@ -338,25 +365,6 @@ export default function ParticleMorphSection() {
     offsetY: DEFAULT_FOOT_OFFSET_Y,
     offsetZ: DEFAULT_FOOT_OFFSET_Z,
   });
-  const footRotationRef = useRef<FootControlState>({
-    rotationXDeg: DEFAULT_FOOT_ROTATION_X_DEG,
-    rotationYDeg: DEFAULT_FOOT_ROTATION_Y_DEG,
-    rotationZDeg: DEFAULT_FOOT_ROTATION_Z_DEG,
-    offsetX: DEFAULT_FOOT_OFFSET_X,
-    offsetY: DEFAULT_FOOT_OFFSET_Y,
-    offsetZ: DEFAULT_FOOT_OFFSET_Z,
-  });
-
-  const updateFootRotation =
-    (key: keyof FootControlState) =>
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const nextValue = Number(event.target.value);
-      setFootRotation((current) => {
-        const nextState = { ...current, [key]: nextValue };
-        footRotationRef.current = nextState;
-        return nextState;
-      });
-    };
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -415,6 +423,8 @@ export default function ParticleMorphSection() {
     const revealJitter = Float32Array.from(
       Array.from({ length: PARTICLE_COUNT }, () => Math.random() * POINT_REVEAL_JITTER),
     );
+    const bedEuler = new THREE.Euler();
+    const bedQuaternion = new THREE.Quaternion();
     const footEuler = new THREE.Euler();
     const footQuaternion = new THREE.Quaternion();
     const sourcePoint = new THREE.Vector3();
@@ -466,6 +476,13 @@ export default function ParticleMorphSection() {
         target.positions[index + 1],
         target.positions[index + 2],
       );
+
+      if (target.label === 'BED') {
+        output.applyQuaternion(bedQuaternion);
+        output.x += bedControlRef.current.offsetX;
+        output.y += bedControlRef.current.offsetY;
+        output.z += bedControlRef.current.offsetZ;
+      }
 
       if (target.label === 'FOOT') {
         output.applyQuaternion(footQuaternion);
@@ -675,6 +692,13 @@ export default function ParticleMorphSection() {
       morphPoints.rotation.x = THREE.MathUtils.lerp(-0.3, -0.12, cameraPhase);
 
       if (visibleRef.current && morphTargets.length > 0) {
+        bedEuler.set(
+          THREE.MathUtils.degToRad(bedControlRef.current.rotationXDeg),
+          THREE.MathUtils.degToRad(bedControlRef.current.rotationYDeg),
+          THREE.MathUtils.degToRad(bedControlRef.current.rotationZDeg),
+        );
+        bedQuaternion.setFromEuler(bedEuler);
+
         footEuler.set(
           THREE.MathUtils.degToRad(footRotationRef.current.rotationXDeg),
           THREE.MathUtils.degToRad(footRotationRef.current.rotationYDeg),
@@ -811,176 +835,31 @@ export default function ParticleMorphSection() {
         />
 
         <div className="relative z-10 flex min-h-screen flex-col justify-between px-8 py-12 md:px-12 lg:px-16">
-          <div className="max-w-2xl pt-16 md:pt-20">
-            <span
-              className="mb-5 block text-xs tracking-[0.3em] uppercase"
+          <div className="max-w-[560px] pt-20 md:pt-24">
+            <div
+              className="text-4xl font-semibold uppercase leading-none tracking-[0.12em] md:text-6xl"
               style={{
-                color: 'rgba(255,255,255,0.32)',
-                fontFamily: "'JetBrains Mono', monospace",
+                color: 'rgba(255,255,255,0.92)',
+                fontFamily: "'Space Grotesk', sans-serif",
               }}
             >
-              Particle Morph
-            </span>
-
+              SHROOM
+            </div>
             <h2
-              className="max-w-xl text-4xl font-bold leading-tight md:text-5xl"
+              className="mt-5 text-3xl font-semibold leading-tight md:text-5xl"
               style={{
                 color: '#ffffff',
                 fontFamily: "'Space Grotesk', sans-serif",
               }}
             >
-              直接从 shroom 变到床、座椅、机器人，再到 foot
+              对传感器的视觉表达，
+              <br />
+              和场景衍生
             </h2>
-
-            <p
-              className="mt-6 max-w-xl text-base leading-7 md:text-lg"
-              style={{ color: 'rgba(255,255,255,0.56)' }}
-            >
-              这一段现在直接以 shroom 的粒子形态开场，不再经过最开始那团点云。滚轮每触发一次，
-              粒子就按左到右或右到左的波前扫动，依次完成蘑菇到床、床到座椅、座椅到机器人、机器人到 foot
-              的完整过渡，同时整体落点保持左、右、左、右、左的交替分布。
-            </p>
-
             <div
-              className="mt-8 max-w-xl rounded-[28px] px-5 py-5 pointer-events-auto"
-              style={{
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                backdropFilter: 'blur(18px)',
-              }}
-            >
-              <div
-                className="mb-4 text-xs tracking-[0.28em] uppercase"
-                style={{
-                  color: 'rgba(255,255,255,0.34)',
-                  fontFamily: "'JetBrains Mono', monospace",
-                }}
-              >
-                Foot Controls
-              </div>
-
-              <div className="grid gap-4">
-                <label className="block">
-                  <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.24em]">
-                    <span style={{ color: 'rgba(255,255,255,0.56)', fontFamily: "'JetBrains Mono', monospace" }}>
-                      Foot Tilt X
-                    </span>
-                    <span style={{ color: '#fb7185', fontFamily: "'JetBrains Mono', monospace" }}>
-                      {footRotation.rotationXDeg.toFixed(0)} deg
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="-360"
-                    max="360"
-                    step="1"
-                    value={footRotation.rotationXDeg}
-                    onChange={updateFootRotation('rotationXDeg')}
-                    className="w-full accent-rose-400"
-                  />
-                </label>
-
-                <label className="block">
-                  <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.24em]">
-                    <span style={{ color: 'rgba(255,255,255,0.56)', fontFamily: "'JetBrains Mono', monospace" }}>
-                      Foot Tilt Y
-                    </span>
-                    <span style={{ color: '#fb7185', fontFamily: "'JetBrains Mono', monospace" }}>
-                      {footRotation.rotationYDeg.toFixed(0)} deg
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="-360"
-                    max="360"
-                    step="1"
-                    value={footRotation.rotationYDeg}
-                    onChange={updateFootRotation('rotationYDeg')}
-                    className="w-full accent-rose-400"
-                  />
-                </label>
-
-                <label className="block">
-                  <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.24em]">
-                    <span style={{ color: 'rgba(255,255,255,0.56)', fontFamily: "'JetBrains Mono', monospace" }}>
-                      Foot Tilt Z
-                    </span>
-                    <span style={{ color: '#fb7185', fontFamily: "'JetBrains Mono', monospace" }}>
-                      {footRotation.rotationZDeg.toFixed(0)} deg
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="-360"
-                    max="360"
-                    step="1"
-                    value={footRotation.rotationZDeg}
-                    onChange={updateFootRotation('rotationZDeg')}
-                    className="w-full accent-rose-400"
-                  />
-                </label>
-
-                <label className="block">
-                  <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.24em]">
-                    <span style={{ color: 'rgba(255,255,255,0.56)', fontFamily: "'JetBrains Mono', monospace" }}>
-                      Foot Position X
-                    </span>
-                    <span style={{ color: '#fb7185', fontFamily: "'JetBrains Mono', monospace" }}>
-                      {footRotation.offsetX.toFixed(2)}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="-4"
-                    max="4"
-                    step="0.01"
-                    value={footRotation.offsetX}
-                    onChange={updateFootRotation('offsetX')}
-                    className="w-full accent-rose-400"
-                  />
-                </label>
-
-                <label className="block">
-                  <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.24em]">
-                    <span style={{ color: 'rgba(255,255,255,0.56)', fontFamily: "'JetBrains Mono', monospace" }}>
-                      Foot Position Y
-                    </span>
-                    <span style={{ color: '#fb7185', fontFamily: "'JetBrains Mono', monospace" }}>
-                      {footRotation.offsetY.toFixed(2)}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="-4"
-                    max="4"
-                    step="0.01"
-                    value={footRotation.offsetY}
-                    onChange={updateFootRotation('offsetY')}
-                    className="w-full accent-rose-400"
-                  />
-                </label>
-
-                <label className="block">
-                  <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.24em]">
-                    <span style={{ color: 'rgba(255,255,255,0.56)', fontFamily: "'JetBrains Mono', monospace" }}>
-                      Foot Position Z
-                    </span>
-                    <span style={{ color: '#fb7185', fontFamily: "'JetBrains Mono', monospace" }}>
-                      {footRotation.offsetZ.toFixed(2)}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="-4"
-                    max="4"
-                    step="0.01"
-                    value={footRotation.offsetZ}
-                    onChange={updateFootRotation('offsetZ')}
-                    className="w-full accent-rose-400"
-                  />
-                </label>
-              </div>
-            </div>
+              className="mt-5 h-px w-28"
+              style={{ background: 'linear-gradient(90deg, rgba(125,211,252,0.72), rgba(255,255,255,0))' }}
+            />
           </div>
 
           <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
@@ -1001,7 +880,7 @@ export default function ParticleMorphSection() {
                       fontFamily: "'JetBrains Mono', monospace",
                     }}
                   >
-                    {spec.label} / {spec.title}
+                    {spec.badgePrefix}/{spec.badgeTitle}
                   </div>
                 );
               })}
@@ -1029,7 +908,7 @@ export default function ParticleMorphSection() {
                   fontFamily: "'JetBrains Mono', monospace",
                 }}
               >
-                Wheel Morph: Down Mushroom / Bed / Chair / Robot / Foot
+                Wheel Morph: SHROOM/SHROOM / 关怀/床 / 定制/座椅 / 精密/机器人 / LAB/足底
               </div>
             </div>
           </div>

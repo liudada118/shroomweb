@@ -4,7 +4,6 @@
  */
 import { lazy, Suspense } from 'react';
 import Navbar from '@/components/Navbar';
-import HeroSensorSection from '@/components/hero/HeroSensorSection';
 
 const ParticleMorphSection = lazy(() => import('@/components/sections/ParticleMorphSection'));
 
@@ -12,7 +11,6 @@ export default function Home() {
   return (
     <div className="min-h-screen" style={{ background: '#0a0e1a' }}>
       <Navbar />
-      <HeroSensorSection />
       <Suspense fallback={null}>
         <ParticleMorphSection />
       </Suspense>
