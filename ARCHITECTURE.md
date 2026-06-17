@@ -1,6 +1,6 @@
 # 架构文档
 
-> 本文档由 Codex 维护。最后更新于：2026-05-22
+> 本文档由 Codex 维护。最后更新于：2026-06-17
 
 ## 1. 项目概览
 
@@ -68,13 +68,8 @@ graph TD
   A[client/src/main.tsx] --> B[App.tsx]
   B --> C[Wouter Router]
   C --> D[pages/Home.tsx]
-  D --> E[components/Navbar.tsx]
   D --> M[components/sections/ParticleMorphSection.tsx]
-  M --> N[model/shroom.glb]
-  M --> O[model/bed.glb]
-  M --> P[model/chair3.glb]
   M --> Q[model/jiqirenGggg.fbx]
-  M --> R[model/foot-optimized.glb]
   J[server/index.ts] --> K[dist/public]
   L[vite.config.ts] --> A
   L --> J
@@ -83,9 +78,9 @@ graph TD
 ### 4.2 主要数据流
 
 1. 首页渲染流程
-   `main.tsx` 挂载 `App`，`wouter` 使用 `import.meta.env.BASE_URL` 作为路由 base，使 `/shroom/` 部署路径在应用内仍被识别为首页 `/`；首页当前渲染 `Navbar` 和懒加载的 `ParticleMorphSection`，原第一屏 `HeroSensorSection` 已从首页渲染链路移除。
-2. 模型粒子变形流程
-   `ParticleMorphSection` 通过 `GLTFLoader` / `FBXLoader` 读取本地 `shroom`、床、座椅、机器人、foot 模型，使用 `MeshSurfaceSampler` 采样表面点云；其中 `foot.glb` 体积过大，当前前端实际切到脚本生成的 `foot-optimized.glb` 轻量版。粒子序列现在直接以 `shroom` 形态开场，不再经过最开始的热力点云桥接，然后由滚轮按顺序触发 `shroom -> bed -> chair -> robot -> foot` 的完整 morph。每次过渡都带随机分批生成、完成后的短暂停顿，以及左到右 / 右到左交替的扫动方向；模型整体落点按左、右、左、右、左交替切换。bed 与 foot 的姿态和位置参数保留为内部默认预设，页面已去掉调参滑杆面板，左侧参考产品官网式排布展示 SHROOM 主题、传感器视觉表达文案、说明段和三组能力短标签；底部阶段标题改为 `SHROOM/SHROOM`、`关怀/床`、`定制/座椅`、`精密/机器人`、`LAB/足底`。bed 当前默认预设为 `47° / -119° / 0° / 3.76 / 2.06 / -0.80`，foot 当前默认预设为 `98° / 70° / -1° / -2.56 / 2.57 / -0.05`。
+   `main.tsx` 挂载 `App`，`wouter` 使用 `import.meta.env.BASE_URL` 作为路由 base，使 `/shroom/` 部署路径在应用内仍被识别为首页 `/`；首页当前只懒加载 `ParticleMorphSection`，不再渲染导航、文案区或原第一屏 `HeroSensorSection`。
+2. 单人形粒子流程
+   `ParticleMorphSection` 通过 `FBXLoader` 读取本地 `model/jiqirenGggg.fbx`，使用 `MeshSurfaceSampler` 从可渲染 mesh 表面采样固定数量粒子，并以 `THREE.Points` 渲染成人形点云。页面已移除 `shroom -> bed -> chair -> robot -> foot` 多目标 morph、滚轮切换、阶段标签和文案层，只保留全屏人形 3D 粒子、背景粒子云、鼠标视差相机与粒子轻微噪声漂浮；后续如需替换为其它 3D 可视化模型，只需替换当前单一模型源与 loader 类型。
 
 ## 5. API 端点
 
@@ -152,6 +147,7 @@ graph TD
 | 2026-05-22 | Shroom 子目录静态回退 | 为 `/shroom/` 部署补充 `.htaccess` 和构建后的 `404.html` 兜底，降低手动上传后刷新或子路径访问 404 的风险 |
 | 2026-05-22 | Shroom 子目录构建路径 | 将 Vite 生产构建基础路径固定为 `/shroom/`，与服务器 `shroom` 目录部署方式保持一致 |
 | 2026-05-22 | Shroom 子目录路由 base | 将 Wouter 路由 base 同步到 Vite `BASE_URL`，避免访问 `/shroom/` 时进入应用内 404 |
+| 2026-06-17 | 单人形 3D 粒子页 | 将首页精简为只显示 `jiqirenGggg.fbx` 采样得到的人形点云，移除多模型 morph、导航和文案 UI |
 
 ## 9. 更新日志
 
@@ -183,3 +179,4 @@ graph TD
 | 2026-05-22 | 部署配置 | 新增 `client/public/.htaccess`，并在手动打包流程中生成 `404.html`，支持 `/shroom/` 子目录下的 SPA 静态回退 |
 | 2026-05-22 | 配置变更 | 在 `vite.config.ts` 中设置 `base: "/shroom/"`，使构建资源路径按 `/shroom/assets/...` 输出 |
 | 2026-05-22 | 修复缺陷 | 将 Wouter 包裹为带 base 的路由器，使 `/shroom/` 子目录访问命中首页而不是项目内 404 |
+| 2026-06-17 | 优化重构 | 将 `ParticleMorphSection` 重构为单一人形点云场景，仅采样 `jiqirenGggg.fbx` 并移除多模型滚轮 morph 逻辑 |
