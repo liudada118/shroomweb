@@ -11,7 +11,7 @@
 | 分类 | 技术 | 版本/说明 |
 | :--- | :--- | :--- |
 | 前端框架 | React 19 | `react` + `react-dom` |
-| 构建工具 | Vite 7 | 根 `dev/build/preview` 入口 |
+| 构建工具 | Vite 7 | 根 `dev/build/preview` 入口，生产构建通过 `base: "/shroom/"` 适配服务器 `/shroom/` 子目录 |
 | 3D 渲染 | Three.js | 当前首页使用 `client/src/components/sections/ParticleMorphSection.tsx`，旧传感器场景保留在 `client/src/components/hero` |
 | 路由 | Wouter | SPA 路由切换 |
 | 样式 | Tailwind CSS 4 | 配合自定义 `index.css` |
@@ -53,6 +53,7 @@
 | `client/src/components/hero` | 旧版传感器主舞台，当前首页已不再渲染 |
 | `client/src/components/sections` | 首页后续扩展 section，当前包含模型粒子变形场景 |
 | `client/src/components/ui` | Radix/Shadcn 风格的基础 UI 组件 |
+| `client/public/.htaccess` | 部署到 `/shroom/` 子目录时的 Apache 静态回退配置，用于将非真实文件路径回退到 `index.html` |
 | `model` | 本地上传的 shroom、床、座椅、机器人、foot 模型资产，以及用于 morph 的 `foot-optimized.glb` 轻量版 |
 | `server` | 生产环境静态托管入口 |
 | `shared` | 前后端共享常量 |
@@ -82,9 +83,9 @@ graph TD
 ### 4.2 主要数据流
 
 1. 首页渲染流程
-   `main.tsx` 挂载 `App`，`wouter` 将 `/` 路由到 `Home`，首页当前渲染 `Navbar` 和懒加载的 `ParticleMorphSection`，原第一屏 `HeroSensorSection` 已从首页渲染链路移除。
+   `main.tsx` 挂载 `App`，`wouter` 使用 `import.meta.env.BASE_URL` 作为路由 base，使 `/shroom/` 部署路径在应用内仍被识别为首页 `/`；首页当前渲染 `Navbar` 和懒加载的 `ParticleMorphSection`，原第一屏 `HeroSensorSection` 已从首页渲染链路移除。
 2. 模型粒子变形流程
-   `ParticleMorphSection` 通过 `GLTFLoader` / `FBXLoader` 读取本地 `shroom`、床、座椅、机器人、foot 模型，使用 `MeshSurfaceSampler` 采样表面点云；其中 `foot.glb` 体积过大，当前前端实际切到脚本生成的 `foot-optimized.glb` 轻量版。粒子序列现在直接以 `shroom` 形态开场，不再经过最开始的热力点云桥接，然后由滚轮按顺序触发 `shroom -> bed -> chair -> robot -> foot` 的完整 morph。每次过渡都带随机分批生成、完成后的短暂停顿，以及左到右 / 右到左交替的扫动方向；模型整体落点按左、右、左、右、左交替切换。bed 与 foot 的姿态和位置参数保留为内部默认预设，页面已去掉调参滑杆面板，左侧增加“对传感器的视觉表达，和场景衍生 -- SHROOM”主题文案；底部阶段标题改为 `SHROOM/SHROOM`、`关怀/床`、`定制/座椅`、`精密/机器人`、`LAB/足底`。bed 当前默认预设为 `47° / -119° / 0° / 3.76 / 2.06 / -0.80`，foot 当前默认预设为 `98° / 70° / -1° / -2.56 / 2.57 / -0.05`。
+   `ParticleMorphSection` 通过 `GLTFLoader` / `FBXLoader` 读取本地 `shroom`、床、座椅、机器人、foot 模型，使用 `MeshSurfaceSampler` 采样表面点云；其中 `foot.glb` 体积过大，当前前端实际切到脚本生成的 `foot-optimized.glb` 轻量版。粒子序列现在直接以 `shroom` 形态开场，不再经过最开始的热力点云桥接，然后由滚轮按顺序触发 `shroom -> bed -> chair -> robot -> foot` 的完整 morph。每次过渡都带随机分批生成、完成后的短暂停顿，以及左到右 / 右到左交替的扫动方向；模型整体落点按左、右、左、右、左交替切换。bed 与 foot 的姿态和位置参数保留为内部默认预设，页面已去掉调参滑杆面板，左侧参考产品官网式排布展示 SHROOM 主题、传感器视觉表达文案、说明段和三组能力短标签；底部阶段标题改为 `SHROOM/SHROOM`、`关怀/床`、`定制/座椅`、`精密/机器人`、`LAB/足底`。bed 当前默认预设为 `47° / -119° / 0° / 3.76 / 2.06 / -0.80`，foot 当前默认预设为 `98° / 70° / -1° / -2.56 / 2.57 / -0.05`。
 
 ## 5. API 端点
 
@@ -147,7 +148,10 @@ graph TD
 | 2026-05-22 | Bed 增加姿态与位置调节 | 为 bed morph 目标补充 `Bed Controls` 面板，支持三轴旋转和三轴位置实时微调 |
 | 2026-05-22 | Bed 默认姿态预设 | 将 bed 的默认旋转和平移更新为 `47 / -119 / 0 / 3.76 / 2.06 / -0.80`，便于床垫阶段直接使用目标构图 |
 | 2026-05-22 | 精简粒子场景界面 | 移除左侧文案和调参滑杆，将底部阶段标题更新为 `SHROOM/SHROOM`、`关怀/床`、`定制/座椅`、`精密/机器人`、`LAB/足底` |
-| 2026-05-22 | 增加左侧主题文案 | 在粒子场景左侧增加“对传感器的视觉表达，和场景衍生 -- SHROOM”，并放大 SHROOM 品牌字样以补足画面信息密度 |
+| 2026-05-22 | 增加左侧主题文案 | 参考产品官网式排布，在粒子场景左侧增加 SHROOM 品牌字样、传感器视觉表达文案、说明段和三组能力短标签 |
+| 2026-05-22 | Shroom 子目录静态回退 | 为 `/shroom/` 部署补充 `.htaccess` 和构建后的 `404.html` 兜底，降低手动上传后刷新或子路径访问 404 的风险 |
+| 2026-05-22 | Shroom 子目录构建路径 | 将 Vite 生产构建基础路径固定为 `/shroom/`，与服务器 `shroom` 目录部署方式保持一致 |
+| 2026-05-22 | Shroom 子目录路由 base | 将 Wouter 路由 base 同步到 Vite `BASE_URL`，避免访问 `/shroom/` 时进入应用内 404 |
 
 ## 9. 更新日志
 
@@ -175,4 +179,7 @@ graph TD
 | 2026-05-22 | 新增功能 | 为 `ParticleMorphSection` 新增 `Bed Controls`，并复用模型控制面板同时管理 bed 与 foot 的旋转和平移参数 |
 | 2026-05-22 | 配置变更 | 将 `ParticleMorphSection` 中 bed 的默认旋转和平移参数更新为 `47 / -119 / 0 / 3.76 / 2.06 / -0.80` |
 | 2026-05-22 | 优化重构 | 移除 `ParticleMorphSection` 左侧说明文字和滑杆 UI，保留内部默认参数，并重命名底部阶段标题 |
-| 2026-05-22 | 界面优化 | 在 `ParticleMorphSection` 左侧补充 SHROOM 主题文案，并放大 SHROOM 字样，保持主画面留白但降低空旷感 |
+| 2026-05-22 | 界面优化 | 调整 `ParticleMorphSection` 左侧文案排布，参考官网视觉层级组织 SHROOM、主句、说明段和能力短标签 |
+| 2026-05-22 | 部署配置 | 新增 `client/public/.htaccess`，并在手动打包流程中生成 `404.html`，支持 `/shroom/` 子目录下的 SPA 静态回退 |
+| 2026-05-22 | 配置变更 | 在 `vite.config.ts` 中设置 `base: "/shroom/"`，使构建资源路径按 `/shroom/assets/...` 输出 |
+| 2026-05-22 | 修复缺陷 | 将 Wouter 包裹为带 base 的路由器，使 `/shroom/` 子目录访问命中首页而不是项目内 404 |

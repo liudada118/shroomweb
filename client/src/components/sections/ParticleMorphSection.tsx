@@ -835,31 +835,81 @@ export default function ParticleMorphSection() {
         />
 
         <div className="relative z-10 flex min-h-screen flex-col justify-between px-8 py-12 md:px-12 lg:px-16">
-          <div className="max-w-[560px] pt-20 md:pt-24">
+          <div className="max-w-[620px] pt-24 md:pt-32">
             <div
-              className="text-4xl font-semibold uppercase leading-none tracking-[0.12em] md:text-6xl"
+              className="flex items-center gap-3 text-[11px] uppercase tracking-[0.28em]"
               style={{
-                color: 'rgba(255,255,255,0.92)',
+                color: 'rgba(125,211,252,0.78)',
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+            >
+              <span
+                className="h-px w-8"
+                style={{ background: 'linear-gradient(90deg, rgba(125,211,252,0), rgba(125,211,252,0.8))' }}
+              />
+              Sensor visual system
+            </div>
+            <div
+              className="mt-4 text-6xl font-bold uppercase leading-none md:text-8xl"
+              style={{
+                color: '#ffffff',
                 fontFamily: "'Space Grotesk', sans-serif",
+                textShadow: '0 0 28px rgba(125,211,252,0.45)',
               }}
             >
               SHROOM
             </div>
-            <h2
-              className="mt-5 text-3xl font-semibold leading-tight md:text-5xl"
+            <div
+              className="mt-6 text-xl font-medium md:text-2xl"
               style={{
-                color: '#ffffff',
+                color: '#60a5fa',
                 fontFamily: "'Space Grotesk', sans-serif",
               }}
             >
-              对传感器的视觉表达，
-              <br />
-              和场景衍生
+              对传感器的视觉表达
+            </div>
+            <h2
+              className="mt-3 text-4xl font-light leading-tight md:text-5xl"
+              style={{ color: '#ffffff', fontFamily: "'Space Grotesk', sans-serif" }}
+            >
+              场景无限衍生。
             </h2>
             <div
-              className="mt-5 h-px w-28"
+              className="mt-7 h-px w-32"
               style={{ background: 'linear-gradient(90deg, rgba(125,211,252,0.72), rgba(255,255,255,0))' }}
             />
+            <p
+              className="mt-6 max-w-md text-sm leading-8 md:text-base"
+              style={{ color: 'rgba(255,255,255,0.58)', fontFamily: "'Space Grotesk', sans-serif" }}
+            >
+              
+              <br />
+              SHROOM 将传感器感知范围转化为可视化的空间结构，
+              <br />
+              激发多元场景想象，连接现实与未来可能。
+            </p>
+            <div className="mt-8 grid max-w-xl grid-cols-1 gap-5 sm:grid-cols-3">
+              {[
+                ['感知可视化', '传感范围直观呈现'],
+                ['场景可延展', '多种形态自由衍生'],
+                ['未来可联接', '连接设备与更多可能'],
+              ].map(([title, caption]) => (
+                <div key={title}>
+                  <div
+                    className="text-sm font-semibold"
+                    style={{ color: 'rgba(255,255,255,0.88)', fontFamily: "'Space Grotesk', sans-serif" }}
+                  >
+                    {title}
+                  </div>
+                  <div
+                    className="mt-1 text-xs"
+                    style={{ color: 'rgba(255,255,255,0.44)', fontFamily: "'Space Grotesk', sans-serif" }}
+                  >
+                    {caption}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
